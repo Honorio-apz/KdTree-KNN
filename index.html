@@ -1,0 +1,127 @@
+<html>
+
+<head>
+  <style>
+    .line {
+      fill: none;
+      stroke: #ccc;
+    }
+
+    .point {
+      fill: #999;
+      stroke: #fff;
+    }
+
+    .point.scanned {
+      fill: #13CE00;
+      stroke: #999;
+    }
+
+    .point.selected {
+      fill: #FF5733;
+      stroke: #999;
+    }
+
+    .halo {
+      fill: none;
+      stroke: red;
+    }
+  </style>
+</head>
+
+<body>
+  <script src="kd-tree.js"></script>
+  <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script>
+    var width = 1360,
+      height = 800;
+
+    var svg = d3.select("body").append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    var arrayData = new Array();
+    var archivoCsv = new XMLHttpRequest();
+    var fileRuta = 'iris.csv';
+    archivoCsv.open("GET", fileRuta, false);
+    archivoCsv.send(null);
+
+    var txt = archivoCsv.responseText;
+    const text = txt.split(",");
+
+    for (var i = 0; i < text.length-1; i=i+5) {
+      // !isNaN(text[i]*1)?arrayData.push(text[i]*1):arrayData.push((text[i]));
+      arrayData.push({
+        x:(text[i]*1),y:(text[i+1]*1),z:(text[i+2]*1),w:(text[i+3]*1),value:text[i+4]
+      })
+    }
+    
+    // console.log(arrayData);
+   
+    var data = arrayData.map(function (arrayData) {
+      return {
+          x: (width * arrayData.x)/10,
+          y: (height * arrayData.y)/10,
+          z: arrayData.z,
+          w: arrayData.w,
+          value: d3.random.normal()()// just for testing purposes
+        };
+    });
+
+    console.log(data)
+    
+
+    //  var data = d3.range(188)
+    //   .map(function() {
+    //     return {
+    //       x: width * Math.random(),
+    //       y: height * Math.random(),
+    //       value: d3.random.normal()() // just for testing purposes
+    //     };
+    //   });
+    //   console.log(data)
+    var tree = KDTree()
+      .x(function(d) { return d.x; })
+      .y(function(d) { return d.y; })
+      (data);
+
+    svg.append("g").attr("class", "lines")
+      .selectAll(".line").data(tree.lines([[0, 0], [width, height]]))
+      .enter().append("path")
+      .attr("class", "line")
+      .attr("d", d3.svg.line());
+
+    var points = svg.append("g").attr("class", "points")
+      .selectAll(".point").data(tree.flatten())
+      .enter().append("circle")
+      .attr("class", "point")
+      .attr("cx", function (d) { return d.location[0]; })
+      .attr("cy", function (d) { return d.location[1]; })
+      .attr("r", 4);
+
+    var halo = svg.append("circle").attr("class", "halo");
+
+    update([width / 3, height / 2]);
+
+    svg.append("rect").attr("class", "event-canvas")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("fill-opacity", 0)
+      .on("mousemove", function () { update(d3.mouse(this)); });
+
+    function update(target) {
+      var nearest = tree.find(target, 1);
+
+      points
+        .classed("scanned", function (d) { return nearest.scannedNodes.indexOf(d) !== -1; })
+        .classed("selected", function (d) { return nearest.nearestNodes.indexOf(d) !== -1; });
+
+      halo
+        .attr("cx", target[0])
+        .attr("cy", target[1])
+        .attr("r", nearest.maxDistance);
+    }
+  </script>
+</body>
+
+</html>
